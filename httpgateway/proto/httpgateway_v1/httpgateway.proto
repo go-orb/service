@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package httpgateway.v1;
+
+option go_package = "./httpgateway;httpgateway_v1";
+
+import "google/protobuf/empty.proto";
+
+service HttpGateway {
+  rpc AddRoutes(Routes) returns (google.protobuf.Empty);
+  rpc SetRoutes(Routes) returns (google.protobuf.Empty);
+  rpc RemoveRoutes(Paths) returns (google.protobuf.Empty);
+}
+
+message Route {
+  string http_method = 1;
+  string path = 2; 
+  string service = 3;
+  string method = 4;
+  repeated string params = 5;
+}
+
+message Paths {
+  repeated string paths = 1;
+}
+
+message Routes {
+  repeated Route routes = 1;
+}
