@@ -20,6 +20,9 @@ import (
 	"github.com/go-orb/go-orb/server"
 
 	grpc "google.golang.org/grpc"
+
+	mdrpc "github.com/go-orb/plugins/server/drpc"
+	memory "github.com/go-orb/plugins/server/memory"
 )
 
 // HandlerHttpGateway is the name of a service, it's here to static type/reference.
@@ -62,6 +65,42 @@ type HttpGatewayHandler interface {
 	RemoveRoutes(ctx context.Context, req *Paths) (*emptypb.Empty, error)
 }
 
+// registerHttpGatewayDRPCHandler registers the service to an dRPC server.
+func registerHttpGatewayDRPCHandler(srv *mdrpc.Server, handler HttpGatewayHandler) error {
+	desc := DRPCHttpGatewayDescription{}
+
+	// Register with the server/drpc(.Mux).
+	err := srv.Router().Register(handler, desc)
+	if err != nil {
+		return err
+	}
+
+	// Add each endpoint name of this handler to the orb drpc server.
+	srv.AddEndpoint("/httpgateway.v1.HttpGateway/AddRoutes")
+	srv.AddEndpoint("/httpgateway.v1.HttpGateway/SetRoutes")
+	srv.AddEndpoint("/httpgateway.v1.HttpGateway/RemoveRoutes")
+
+	return nil
+}
+
+// registerHttpGatewayMemoryHandler registers the service to an dRPC server.
+func registerHttpGatewayMemoryHandler(srv *memory.Server, handler HttpGatewayHandler) error {
+	desc := DRPCHttpGatewayDescription{}
+
+	// Register with the server/drpc(.Mux).
+	err := srv.Router().Register(handler, desc)
+	if err != nil {
+		return err
+	}
+
+	// Add each endpoint name of this handler to the orb drpc server.
+	srv.AddEndpoint("/httpgateway.v1.HttpGateway/AddRoutes")
+	srv.AddEndpoint("/httpgateway.v1.HttpGateway/SetRoutes")
+	srv.AddEndpoint("/httpgateway.v1.HttpGateway/RemoveRoutes")
+
+	return nil
+}
+
 // RegisterHttpGatewayHandler will return a registration function that can be
 // provided to entrypoints as a handler registration.
 func RegisterHttpGatewayHandler(handler HttpGatewayHandler) server.RegistrationFunc {
@@ -70,6 +109,10 @@ func RegisterHttpGatewayHandler(handler HttpGatewayHandler) server.RegistrationF
 
 		case grpc.ServiceRegistrar:
 			registerHttpGatewayGRPCHandler(srv, handler)
+		case *mdrpc.Server:
+			registerHttpGatewayDRPCHandler(srv, handler)
+		case *memory.Server:
+			registerHttpGatewayMemoryHandler(srv, handler)
 		default:
 			log.Warn("No provider for this server found", "proto", "httpgateway_v1/httpgateway.proto", "handler", "HttpGateway", "server", s)
 		}

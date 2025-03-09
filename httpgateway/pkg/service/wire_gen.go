@@ -93,7 +93,7 @@ func provideActionServer(
 	handler *httpgateway_handler.Handler,
 ) (ActionServer, error) {
 	return func() error {
-		if err := components.Add(server2, types.PriorityCustom); err != nil {
+		if err := components.Add(server2, types.PriorityHandler-10); err != nil {
 			return err
 		}
 		if err := components.Add(handler, types.PriorityHandler); err != nil {

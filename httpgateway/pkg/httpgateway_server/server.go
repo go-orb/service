@@ -174,6 +174,10 @@ func (s *Server) proxyFor(route *httpgateway_v1.Route) gin.HandlerFunc {
 }
 
 func (s *Server) buildGin() error {
+	if s.server == nil {
+		return nil
+	}
+
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(sloggin.New(s.logger.Logger))
