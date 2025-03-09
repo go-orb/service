@@ -14,6 +14,7 @@ import (
 	sloggin "github.com/samber/slog-gin"
 
 	"github.com/go-orb/go-orb/client"
+	"github.com/go-orb/go-orb/codecs"
 	"github.com/go-orb/go-orb/config"
 	"github.com/go-orb/go-orb/log"
 	"github.com/go-orb/go-orb/types"
@@ -154,7 +155,7 @@ func (s *Server) proxyFor(route *httpgateway_v1.Route) gin.HandlerFunc {
 		}
 
 		// remote request
-		response, err := client.Request[gin.H](c.Request.Context(), s.client, route.GetService(), route.GetMethod(), request, client.WithContentType("application/json"))
+		response, err := client.Request[gin.H](c.Request.Context(), s.client, route.GetService(), route.GetMethod(), request, client.WithContentType(codecs.MimeJSON))
 		if err != nil {
 			orbErr := orberrors.From(err)
 			c.JSON(orbErr.Code, gin.H{
