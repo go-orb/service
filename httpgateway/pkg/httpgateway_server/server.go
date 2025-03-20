@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	sloggin "github.com/samber/slog-gin"
 
+	"github.com/go-orb/go-orb/cli"
 	"github.com/go-orb/go-orb/client"
 	"github.com/go-orb/go-orb/codecs"
 	"github.com/go-orb/go-orb/config"
@@ -262,21 +263,19 @@ func New(cfg Config, logger log.Logger, client client.Type) *Server {
 
 // Provide provides the httpgateway component.
 func Provide(
-	name types.ServiceName,
-	configs types.ConfigData,
+	svcCtx *cli.ServiceContext,
 	components *types.Components,
 	logger log.Logger,
 	client client.Type,
 ) (*Server, error) {
 	cfg := NewConfig()
 
-	sections := append(types.SplitServiceName(name), DefaultConfigSection)
-	if err := config.Parse(sections, configs, &cfg); err != nil {
+	if err := config.Parse(nil, DefaultConfigSection, svcCtx.Config, &cfg); err != nil {
 		return nil, err
 	}
 
 	// Configure the logger.
-	cLogger, err := logger.WithConfig(sections, configs)
+	cLogger, err := logger.WithConfig([]string{DefaultConfigSection}, svcCtx.Config)
 	if err != nil {
 		return nil, err
 	}

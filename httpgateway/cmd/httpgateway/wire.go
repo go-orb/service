@@ -32,6 +32,7 @@ func run(
 	panic(wire.Build(
 		urfave.ProvideParser,
 		cli.ProvideParsedFlagsFromArgs,
+		cli.ProvideAppConfigData,
 
 		provideServiceContext,
 		service.ProvideRunner,

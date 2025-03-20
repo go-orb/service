@@ -14,10 +14,14 @@ import (
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-orb/go-orb/client"
 	"github.com/go-orb/go-orb/log"
 	"github.com/go-orb/go-orb/server"
+
+	"google.golang.org/protobuf/proto"
+	"storj.io/drpc"
 
 	grpc "google.golang.org/grpc"
 
@@ -30,6 +34,32 @@ const HandlerHttpGateway = "httpgateway.v1.HttpGateway"
 const EndpointHttpGatewayAddRoutes = "/httpgateway.v1.HttpGateway/AddRoutes"
 const EndpointHttpGatewaySetRoutes = "/httpgateway.v1.HttpGateway/SetRoutes"
 const EndpointHttpGatewayRemoveRoutes = "/httpgateway.v1.HttpGateway/RemoveRoutes"
+
+// orbEncoding_HttpGateway_proto is a protobuf encoder for the httpgateway.v1.HttpGateway service.
+type orbEncoding_HttpGateway_proto struct{}
+
+// Marshal implements the drpc.Encoding interface.
+func (orbEncoding_HttpGateway_proto) Marshal(msg drpc.Message) ([]byte, error) {
+	m, ok := msg.(proto.Message)
+	if !ok {
+		return nil, fmt.Errorf("message is not a proto.Message: %T", msg)
+	}
+	return proto.Marshal(m)
+}
+
+// Unmarshal implements the drpc.Encoding interface.
+func (orbEncoding_HttpGateway_proto) Unmarshal(data []byte, msg drpc.Message) error {
+	m, ok := msg.(proto.Message)
+	if !ok {
+		return fmt.Errorf("message is not a proto.Message: %T", msg)
+	}
+	return proto.Unmarshal(data, m)
+}
+
+// Name implements the drpc.Encoding interface.
+func (orbEncoding_HttpGateway_proto) Name() string {
+	return "proto"
+}
 
 // HttpGatewayClient is the client for httpgateway.v1.HttpGateway
 type HttpGatewayClient struct {
@@ -65,12 +95,73 @@ type HttpGatewayHandler interface {
 	RemoveRoutes(ctx context.Context, req *Paths) (*emptypb.Empty, error)
 }
 
+// orbGRPCHttpGateway provides the adapter to convert a HttpGatewayHandler to a gRPC HttpGatewayServer.
+type orbGRPCHttpGateway struct {
+	handler HttpGatewayHandler
+}
+
+// AddRoutes implements the HttpGatewayServer interface by adapting to the HttpGatewayHandler.
+func (s *orbGRPCHttpGateway) AddRoutes(ctx context.Context, req *Routes) (*emptypb.Empty, error) {
+	return s.handler.AddRoutes(ctx, req)
+}
+
+// SetRoutes implements the HttpGatewayServer interface by adapting to the HttpGatewayHandler.
+func (s *orbGRPCHttpGateway) SetRoutes(ctx context.Context, req *Routes) (*emptypb.Empty, error) {
+	return s.handler.SetRoutes(ctx, req)
+}
+
+// RemoveRoutes implements the HttpGatewayServer interface by adapting to the HttpGatewayHandler.
+func (s *orbGRPCHttpGateway) RemoveRoutes(ctx context.Context, req *Paths) (*emptypb.Empty, error) {
+	return s.handler.RemoveRoutes(ctx, req)
+}
+
+// Stream adapters to convert gRPC streams to ORB streams.
+
+// Verification that our adapters implement the required interfaces.
+var _ HttpGatewayServer = (*orbGRPCHttpGateway)(nil)
+
+// registerHttpGatewayGRPCServerHandler registers the service to a gRPC server.
+func registerHttpGatewayGRPCServerHandler(srv grpc.ServiceRegistrar, handler HttpGatewayHandler) {
+	// Create the adapter to convert from HttpGatewayHandler to HttpGatewayServer
+	grpcHandler := &orbGRPCHttpGateway{handler: handler}
+
+	srv.RegisterService(&HttpGateway_ServiceDesc, grpcHandler)
+}
+
+// orbDRPCHttpGatewayHandler wraps a HttpGatewayHandler to implement DRPCHttpGatewayServer.
+type orbDRPCHttpGatewayHandler struct {
+	handler HttpGatewayHandler
+}
+
+// AddRoutes implements the DRPCHttpGatewayServer interface by adapting to the HttpGatewayHandler.
+func (w *orbDRPCHttpGatewayHandler) AddRoutes(ctx context.Context, req *Routes) (*emptypb.Empty, error) {
+	return w.handler.AddRoutes(ctx, req)
+}
+
+// SetRoutes implements the DRPCHttpGatewayServer interface by adapting to the HttpGatewayHandler.
+func (w *orbDRPCHttpGatewayHandler) SetRoutes(ctx context.Context, req *Routes) (*emptypb.Empty, error) {
+	return w.handler.SetRoutes(ctx, req)
+}
+
+// RemoveRoutes implements the DRPCHttpGatewayServer interface by adapting to the HttpGatewayHandler.
+func (w *orbDRPCHttpGatewayHandler) RemoveRoutes(ctx context.Context, req *Paths) (*emptypb.Empty, error) {
+	return w.handler.RemoveRoutes(ctx, req)
+}
+
+// Stream adapters to convert DRPC streams to ORB streams.
+
+// Verification that our adapters implement the required interfaces.
+var _ DRPCHttpGatewayServer = (*orbDRPCHttpGatewayHandler)(nil)
+
 // registerHttpGatewayDRPCHandler registers the service to an dRPC server.
 func registerHttpGatewayDRPCHandler(srv *mdrpc.Server, handler HttpGatewayHandler) error {
 	desc := DRPCHttpGatewayDescription{}
 
+	// Wrap the ORB handler with our adapter to make it compatible with DRPC.
+	drpcHandler := &orbDRPCHttpGatewayHandler{handler: handler}
+
 	// Register with the server/drpc(.Mux).
-	err := srv.Router().Register(handler, desc)
+	err := srv.Router().Register(drpcHandler, desc)
 	if err != nil {
 		return err
 	}
@@ -83,12 +174,15 @@ func registerHttpGatewayDRPCHandler(srv *mdrpc.Server, handler HttpGatewayHandle
 	return nil
 }
 
-// registerHttpGatewayMemoryHandler registers the service to an dRPC server.
+// registerHttpGatewayMemoryHandler registers the service to a memory server.
 func registerHttpGatewayMemoryHandler(srv *memory.Server, handler HttpGatewayHandler) error {
 	desc := DRPCHttpGatewayDescription{}
 
+	// Wrap the ORB handler with our adapter to make it compatible with DRPC.
+	drpcHandler := &orbDRPCHttpGatewayHandler{handler: handler}
+
 	// Register with the server/drpc(.Mux).
-	err := srv.Router().Register(handler, desc)
+	err := srv.Router().Register(drpcHandler, desc)
 	if err != nil {
 		return err
 	}
@@ -103,16 +197,16 @@ func registerHttpGatewayMemoryHandler(srv *memory.Server, handler HttpGatewayHan
 
 // RegisterHttpGatewayHandler will return a registration function that can be
 // provided to entrypoints as a handler registration.
-func RegisterHttpGatewayHandler(handler HttpGatewayHandler) server.RegistrationFunc {
+func RegisterHttpGatewayHandler(handler any) server.RegistrationFunc {
 	return func(s any) {
 		switch srv := s.(type) {
 
 		case grpc.ServiceRegistrar:
-			registerHttpGatewayGRPCHandler(srv, handler)
+			registerHttpGatewayGRPCServerHandler(srv, handler.(HttpGatewayHandler))
 		case *mdrpc.Server:
-			registerHttpGatewayDRPCHandler(srv, handler)
+			registerHttpGatewayDRPCHandler(srv, handler.(HttpGatewayHandler))
 		case *memory.Server:
-			registerHttpGatewayMemoryHandler(srv, handler)
+			registerHttpGatewayMemoryHandler(srv, handler.(HttpGatewayHandler))
 		default:
 			log.Warn("No provider for this server found", "proto", "httpgateway_v1/httpgateway.proto", "handler", "HttpGateway", "server", s)
 		}

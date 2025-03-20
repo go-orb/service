@@ -22,40 +22,32 @@ import (
 // Injectors from wire.go:
 
 // ProvideRunner provides a runner for the service.
-func ProvideRunner(serviceContext *cli.ServiceContext, flags []*cli.Flag) (Runner, error) {
+func ProvideRunner(serviceContext *cli.ServiceContext, appconfigData cli.AppConfigData, flags []*cli.Flag) (Runner, error) {
 	v, err := types.ProvideComponents()
 	if err != nil {
 		return nil, err
 	}
-	serviceName, err := cli.ProvideServiceName(serviceContext)
+	serviceContextHasConfigData, err := cli.ProvideServiceConfigData(serviceContext, appconfigData, flags)
 	if err != nil {
 		return nil, err
 	}
-	configData, err := cli.ProvideConfigData(serviceContext, flags)
+	logger, err := log.ProvideWithServiceNameField(serviceContextHasConfigData, serviceContext, v)
 	if err != nil {
 		return nil, err
 	}
-	logger, err := log.ProvideWithServiceNameField(serviceName, configData, v)
+	registryType, err := registry.ProvideNoOpts(serviceContext, v, logger)
 	if err != nil {
 		return nil, err
 	}
-	serviceVersion, err := cli.ProvideServiceVersion(serviceContext)
+	clientType, err := client.ProvideNoOpts(serviceContext, v, logger, registryType)
 	if err != nil {
 		return nil, err
 	}
-	registryType, err := registry.ProvideNoOpts(serviceName, serviceVersion, configData, v, logger)
+	httpgateway_serverServer, err := httpgateway_server.Provide(serviceContext, v, logger, clientType)
 	if err != nil {
 		return nil, err
 	}
-	clientType, err := client.ProvideNoOpts(serviceName, configData, v, logger, registryType)
-	if err != nil {
-		return nil, err
-	}
-	httpgateway_serverServer, err := httpgateway_server.Provide(serviceName, configData, v, logger, clientType)
-	if err != nil {
-		return nil, err
-	}
-	serverServer, err := server.ProvideNoOpts(serviceName, configData, v, logger, registryType)
+	serverServer, err := server.ProvideNoOpts(serviceContext, v, logger, registryType)
 	if err != nil {
 		return nil, err
 	}

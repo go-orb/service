@@ -34,6 +34,10 @@ func run(appContext *cli.AppContext, args []string) (wireRunResult, error) {
 	if err != nil {
 		return wireRunResult{}, err
 	}
+	appConfigData, err := cli.ProvideAppConfigData(appContext)
+	if err != nil {
+		return wireRunResult{}, err
+	}
 	parserFunc, err := urfave.ProvideParser()
 	if err != nil {
 		return wireRunResult{}, err
@@ -42,7 +46,7 @@ func run(appContext *cli.AppContext, args []string) (wireRunResult, error) {
 	if err != nil {
 		return wireRunResult{}, err
 	}
-	runner, err := service.ProvideRunner(serviceContext, v)
+	runner, err := service.ProvideRunner(serviceContext, appConfigData, v)
 	if err != nil {
 		return wireRunResult{}, err
 	}
