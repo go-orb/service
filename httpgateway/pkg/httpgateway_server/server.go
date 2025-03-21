@@ -4,6 +4,7 @@ package httpgateway_server
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -270,7 +271,7 @@ func Provide(
 ) (*Server, error) {
 	cfg := NewConfig()
 
-	if err := config.Parse(nil, DefaultConfigSection, svcCtx.Config, &cfg); err != nil {
+	if err := config.Parse(nil, DefaultConfigSection, svcCtx.Config, &cfg); err != nil && !errors.Is(err, config.ErrNoSuchKey) {
 		return nil, err
 	}
 
