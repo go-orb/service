@@ -14,7 +14,6 @@ import (
 )
 
 import (
-	_ "github.com/go-orb/plugins-experimental/registry/mdns"
 	_ "github.com/go-orb/plugins/client/middleware/log"
 	_ "github.com/go-orb/plugins/client/orb"
 	_ "github.com/go-orb/plugins/client/orb_transport/grpc"
@@ -23,6 +22,7 @@ import (
 	_ "github.com/go-orb/plugins/codecs/yaml"
 	_ "github.com/go-orb/plugins/config/source/file"
 	_ "github.com/go-orb/plugins/log/slog"
+	_ "github.com/go-orb/plugins/registry/mdns"
 	_ "github.com/go-orb/plugins/registry/memory"
 	_ "github.com/go-orb/plugins/server/grpc"
 )
