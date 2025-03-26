@@ -264,19 +264,19 @@ func New(cfg Config, logger log.Logger, client client.Type) *Server {
 
 // Provide provides the httpgateway component.
 func Provide(
-	svcCtx *cli.ServiceContext,
+	svcCtx *cli.ServiceContextWithConfig,
 	components *types.Components,
 	logger log.Logger,
 	client client.Type,
 ) (*Server, error) {
 	cfg := NewConfig()
 
-	if err := config.Parse(nil, DefaultConfigSection, svcCtx.Config, &cfg); err != nil && !errors.Is(err, config.ErrNoSuchKey) {
+	if err := config.Parse(nil, DefaultConfigSection, svcCtx.Config(), &cfg); err != nil && !errors.Is(err, config.ErrNoSuchKey) {
 		return nil, err
 	}
 
 	// Configure the logger.
-	cLogger, err := logger.WithConfig([]string{DefaultConfigSection}, svcCtx.Config)
+	cLogger, err := logger.WithConfig([]string{DefaultConfigSection}, svcCtx.Config())
 	if err != nil {
 		return nil, err
 	}

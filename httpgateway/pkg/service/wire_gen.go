@@ -23,31 +23,31 @@ import (
 
 // ProvideRunner provides a runner for the service.
 func ProvideRunner(serviceContext *cli.ServiceContext, appconfigData cli.AppConfigData, flags []*cli.Flag) (Runner, error) {
+	serviceContextWithConfig, err := cli.ProvideServiceConfigData(serviceContext, appconfigData, flags)
+	if err != nil {
+		return nil, err
+	}
 	v, err := types.ProvideComponents()
 	if err != nil {
 		return nil, err
 	}
-	serviceContextHasConfigData, err := cli.ProvideServiceConfigData(serviceContext, appconfigData, flags)
+	logger, err := log.ProvideWithServiceNameField(serviceContextWithConfig, v)
 	if err != nil {
 		return nil, err
 	}
-	logger, err := log.ProvideWithServiceNameField(serviceContextHasConfigData, serviceContext, v)
+	registryType, err := registry.ProvideNoOpts(serviceContextWithConfig, v, logger)
 	if err != nil {
 		return nil, err
 	}
-	registryType, err := registry.ProvideNoOpts(serviceContext, v, logger)
+	clientType, err := client.ProvideNoOpts(serviceContextWithConfig, v, logger, registryType)
 	if err != nil {
 		return nil, err
 	}
-	clientType, err := client.ProvideNoOpts(serviceContext, v, logger, registryType)
+	httpgateway_serverServer, err := httpgateway_server.Provide(serviceContextWithConfig, v, logger, clientType)
 	if err != nil {
 		return nil, err
 	}
-	httpgateway_serverServer, err := httpgateway_server.Provide(serviceContext, v, logger, clientType)
-	if err != nil {
-		return nil, err
-	}
-	serverServer, err := server.ProvideNoOpts(serviceContext, v, logger, registryType)
+	serverServer, err := server.ProvideNoOpts(serviceContextWithConfig, v, logger, registryType)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func ProvideRunner(serviceContext *cli.ServiceContext, appconfigData cli.AppConf
 	if err != nil {
 		return nil, err
 	}
-	actionServer, err := provideActionServer(serviceContext, v, logger, httpgateway_serverServer, handler)
+	actionServer, err := provideActionServer(serviceContextWithConfig, v, logger, httpgateway_serverServer, handler)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ type ActionServer func() error
 type ActionHealth func() error
 
 func provideActionServer(
-	serviceContext *cli.ServiceContext,
+	serviceContext *cli.ServiceContextWithConfig,
 	components *types.Components,
 	logger log.Logger, server2 *httpgateway_server.Server,
 	handler *httpgateway_handler.Handler,

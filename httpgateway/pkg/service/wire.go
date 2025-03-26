@@ -23,7 +23,7 @@ type ActionServer func() error
 type ActionHealth func() error
 
 func provideActionServer(
-	serviceContext *cli.ServiceContext,
+	serviceContext *cli.ServiceContextWithConfig,
 	components *types.Components,
 	logger log.Logger,
 	server *httpgateway_server.Server,
